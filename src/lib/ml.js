@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 /**
  * Call the local Python classification script
@@ -9,9 +10,9 @@ import fs from 'fs';
  */
 export async function classifyLocally(imageBase64) {
   return new Promise((resolve, reject) => {
-    // Create a temporary file for the image
-    const tempDir = path.join(process.cwd(), 'scratch');
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+    // Create a temporary file for the image in a writable temp directory
+    const tempDir = path.join(os.tmpdir(), 'dermoai-scratch');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     
     const tempPath = path.join(tempDir, `temp_${Date.now()}.jpg`);
     const buffer = Buffer.from(imageBase64, 'base64');
