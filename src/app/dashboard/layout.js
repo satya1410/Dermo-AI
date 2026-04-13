@@ -1,0 +1,163 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+
+export default function DashboardLayout({ children }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    checkAuth();
+    fetchNotificationCount();
+  }, []);
+
+  async function checkAuth() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.user) {
+        if (data.user.role === 'doctor') {
+          router.push('/doctor-dashboard');
+          return;
+        }
+        setUser(data.user);
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+      }
+    } catch {
+      router.push('/login');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchNotificationCount() {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setUnreadCount(data.unread_count || 0);
+    } catch {}
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.push('/login');
+  }
+
+  const navItems = [
+    { href: '/dashboard', label: 'Analysis', icon: '🔬', exact: true },
+    { href: '/dashboard/history', label: 'History', icon: '📊' },
+    { href: '/dashboard/doctors', label: 'Doctors', icon: '👨‍⚕️' },
+    { href: '/dashboard/notifications', label: 'Notifications', icon: '🔔', badge: unreadCount },
+    { href: '/dashboard/profile', label: 'Profile', icon: '👤' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="loading-page">
+        <div className="loader">
+          <div className="loader-dot" />
+          <div className="loader-dot" />
+          <div className="loader-dot" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-layout">
+      {/* Mobile Menu Toggle */}
+      <button
+        className="mobile-menu-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+      >
+        {sidebarOpen ? '✕' : '☰'}
+      </button>
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <Link href="/" className="sidebar-logo">
+            <div className="landing-logo-icon" style={{ width: 32, height: 32, fontSize: '1rem' }}>🔬</div>
+            <span className="text-gradient">DermoAI</span>
+          </Link>
+        </div>
+
+        <nav className="sidebar-nav">
+          {navItems.map(item => {
+            const isActive = item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                {item.label}
+                {item.badge > 0 && (
+                  <span className="nav-badge">{item.badge}</span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user" onClick={handleLogout} title="Click to logout">
+            <div className="sidebar-avatar">
+              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user?.name || 'User'}</div>
+              <div className="sidebar-user-email">{user?.email || ''}</div>
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>🚪</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {children}
+      </main>
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 40,
+          }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
