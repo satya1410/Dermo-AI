@@ -8,6 +8,8 @@ export default function DoctorsPage() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [analyses, setAnalyses] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [fetchingSlots, setFetchingSlots] = useState(false);
   const [bookingForm, setBookingForm] = useState({
     scheduled_date: '',
     scheduled_time: '',
@@ -46,10 +48,29 @@ export default function DoctorsPage() {
     } catch {}
   }
 
+  async function fetchAvailableSlots(doctorId, date) {
+    if (!doctorId || !date) {
+      setAvailableSlots([]);
+      return;
+    }
+    setFetchingSlots(true);
+    try {
+      const res = await fetch(`/api/slots?doctor_id=${doctorId}&date=${date}`);
+      const data = await res.json();
+      setAvailableSlots(data.available_slots || []);
+    } catch (err) {
+      console.error('Failed to fetch slots:', err);
+      setAvailableSlots([]);
+    } finally {
+      setFetchingSlots(false);
+    }
+  }
+
   function openBookingModal(doctor) {
     setSelectedDoctor(doctor);
     setShowModal(true);
     setBookingForm({ scheduled_date: '', scheduled_time: '', reason: '', analysis_id: '' });
+    setAvailableSlots([]);
     setBookingSuccess('');
     setBookingError('');
   }
@@ -130,39 +151,43 @@ export default function DoctorsPage() {
         ) : (
           <div className="doctors-grid">
             {doctors.map((doctor) => (
-              <div key={doctor.id} className="doctor-card">
-                <div className="doctor-card-header">
-                  <div className="doctor-avatar">
-                    {doctor.name?.charAt(0)?.toUpperCase() || 'D'}
+              <div key={doctor.id} className="doctor-card-modern">
+                <div className="doctor-card-header-modern">
+                  <div className="doctor-avatar-modern">
+                    <div className="avatar-gradient">
+                      {doctor.name?.charAt(0)?.toUpperCase() || 'D'}
+                    </div>
                   </div>
-                  <div>
-                    <div className="doctor-name">{doctor.name}</div>
-                    <div className="doctor-specialization">{doctor.specialization}</div>
+                  <div className="doctor-info-modern">
+                    <h3 className="doctor-name-modern">{doctor.name}</h3>
+                    <p className="doctor-specialization-modern">{doctor.specialization}</p>
                   </div>
                 </div>
 
-                <div className="doctor-details">
-                  <div className="doctor-detail-item">
-                    <span className="doctor-detail-icon">🏥</span>
-                    {doctor.hospital || 'Hospital not specified'}
+                <div className="doctor-details-modern">
+                  <div className="detail-item-modern">
+                    <div className="detail-icon-modern">🏥</div>
+                    <span>{doctor.hospital || 'Hospital not specified'}</span>
                   </div>
-                  <div className="doctor-detail-item">
-                    <span className="doctor-detail-icon">📅</span>
-                    {doctor.experience ? `${doctor.experience} years experience` : 'Experience not specified'}
+                  <div className="detail-item-modern">
+                    <div className="detail-icon-modern">📅</div>
+                    <span>{doctor.experience ? `${doctor.experience} years experience` : 'Experience not specified'}</span>
                   </div>
                   {doctor.phone && (
-                    <div className="doctor-detail-item">
-                      <span className="doctor-detail-icon">📞</span>
-                      {doctor.phone}
+                    <div className="detail-item-modern">
+                      <div className="detail-icon-modern">📞</div>
+                      <span>{doctor.phone}</span>
                     </div>
                   )}
                 </div>
 
                 <button
-                  className="btn btn-primary w-full"
+                  className="book-btn-modern"
                   onClick={() => openBookingModal(doctor)}
                 >
-                  📋 Book Appointment
+                  <span className="btn-icon">📋</span>
+                  Book Appointment
+                  <span className="btn-arrow">→</span>
                 </button>
               </div>
             ))}
@@ -225,20 +250,41 @@ export default function DoctorsPage() {
                   className="form-input"
                   min={today}
                   value={bookingForm.scheduled_date}
-                  onChange={e => setBookingForm({ ...bookingForm, scheduled_date: e.target.value })}
+                  onChange={e => {
+                    const date = e.target.value;
+                    setBookingForm({ ...bookingForm, scheduled_date: date, scheduled_time: '' });
+                    fetchAvailableSlots(selectedDoctor?.id, date);
+                  }}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Preferred Time *</label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={bookingForm.scheduled_time}
-                  onChange={e => setBookingForm({ ...bookingForm, scheduled_time: e.target.value })}
-                  required
-                />
+                <label className="form-label">Available Time Slots *</label>
+                {fetchingSlots ? (
+                  <div className="form-input" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div className="analyzing-spinner" style={{ width: 16, height: 16 }} />
+                    Loading slots...
+                  </div>
+                ) : availableSlots.length === 0 ? (
+                  <div className="form-input" style={{ color: 'var(--text-secondary)' }}>
+                    {bookingForm.scheduled_date ? 'No slots available for this date' : 'Select a date first'}
+                  </div>
+                ) : (
+                  <select
+                    className="form-input form-select"
+                    value={bookingForm.scheduled_time}
+                    onChange={e => setBookingForm({ ...bookingForm, scheduled_time: e.target.value })}
+                    required
+                  >
+                    <option value="">Select a time slot</option>
+                    {availableSlots.map(slot => (
+                      <option key={slot} value={slot}>
+                        {new Date(`2000-01-01T${slot}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="form-group">

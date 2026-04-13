@@ -97,7 +97,7 @@ export default function LandingPage() {
           <div className="feature-card">
             <div className="feature-icon">🧠</div>
             <h3>AI Analysis</h3>
-            <p>Our advanced AI, powered by Google Gemini, analyzes your skin condition — classifying it as benign, malignant, wound type, or skin condition.</p>
+            <p>Our advanced AI, powered by Google Gemini, analyzes your skin condition — classifying it as benign or malignant with high accuracy.</p>
           </div>
           <div className="feature-card">
             <div className="feature-icon">📋</div>

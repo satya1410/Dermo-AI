@@ -24,6 +24,7 @@ CREATE TABLE profiles (
   experience INTEGER,    -- years of experience, doctors only
   phone TEXT,
   avatar_url TEXT,
+  country TEXT DEFAULT 'India',  -- added country field, default India
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -36,7 +37,7 @@ CREATE TABLE analyses (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   image_url TEXT,
   is_skin BOOLEAN DEFAULT TRUE,
-  classification TEXT,     -- 'benign', 'malignant', 'wound', 'skin_condition'
+  classification TEXT,     -- 'benign', 'malignant'
   condition_name TEXT,     -- specific condition name
   severity TEXT CHECK (severity IN ('Low', 'Moderate', 'High', 'Critical')),
   confidence REAL,         -- 0.0 to 1.0
@@ -73,6 +74,19 @@ CREATE TABLE notifications (
   related_id UUID,
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- 5. DOCTOR SLOTS TABLE
+-- ============================================
+CREATE TABLE doctor_slots (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  doctor_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  time_slot TIME NOT NULL,
+  is_available BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(doctor_id, date, time_slot)
 );
 
 -- ============================================

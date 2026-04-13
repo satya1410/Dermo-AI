@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
-import { verifySkinImage, analyzeSkinCondition } from '@/lib/gemini';
+import { verifySkinImage, generateReportFromLocalClass } from '@/lib/gemini';
+import { classifyLocally } from '@/lib/ml';
 
 export async function POST(request) {
   try {
@@ -27,6 +28,34 @@ export async function POST(request) {
       if (mimeMatch) detectedMimeType = mimeMatch[1];
     }
 
+    // --- NEW: Upload to Supabase Storage ---
+    let finalImageUrl = image; // Default to original base64 as fallback
+    try {
+      const fileName = `${payload.userId}/${Date.now()}.${detectedMimeType.split('/')[1] || 'jpg'}`;
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('skin-images')
+        .upload(fileName, buffer, {
+          contentType: detectedMimeType,
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+      } else {
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('skin-images')
+          .getPublicUrl(fileName);
+        
+        finalImageUrl = publicUrl;
+      }
+    } catch (storageErr) {
+      console.error('Buffer/Storage error:', storageErr);
+    }
+    // ----------------------------------------
+
     // Get patient info for personalized analysis
     const { data: profile } = await supabase
       .from('profiles')
@@ -41,7 +70,7 @@ export async function POST(request) {
       // Save analysis with is_skin = false
       await supabase.from('analyses').insert({
         user_id: payload.userId,
-        image_url: image.substring(0, 500), // Store truncated for non-skin
+        image_url: finalImageUrl, 
         is_skin: false,
         classification: null,
         report: { reason: verification.reason },
@@ -54,15 +83,20 @@ export async function POST(request) {
       });
     }
 
-    // Step 2: Full skin analysis with Gemini
-    const report = await analyzeSkinCondition(base64Data, detectedMimeType, profile || {});
+    // --- NEW: USE LOCAL MODELS FOR CLASSIFICATION ---
+    // Step 2: Use local .pth models (Python bridge) to classify image
+    const localResult = await classifyLocally(base64Data);
+    
+    // Step 3: Generate detailed report text using Gemini based on local classification
+    const report = await generateReportFromLocalClass(localResult, profile || {});
+    // ------------------------------------------------
 
-    // Step 3: Save to database
+    // Step 4: Save to database
     const { data: analysis, error: saveError } = await supabase
       .from('analyses')
       .insert({
         user_id: payload.userId,
-        image_url: image,
+        image_url: finalImageUrl, // Use the new cloud URL
         is_skin: true,
         classification: report.classification,
         condition_name: report.condition_name,
@@ -91,9 +125,9 @@ export async function POST(request) {
       analysis: analysis || { report },
     });
   } catch (error) {
-    console.error('Analysis error:', error);
+    console.error('CRITICAL Analysis route error:', error);
     return NextResponse.json(
-      { error: 'Failed to analyze image. Please try again.' },
+      { error: error.message || 'Failed to analyze image. Please try again.' },
       { status: 500 }
     );
   }

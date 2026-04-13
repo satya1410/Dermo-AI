@@ -138,8 +138,6 @@ export default function AnalysisPage() {
     switch (classification?.toLowerCase()) {
       case 'benign': return '✅';
       case 'malignant': return '⚠️';
-      case 'wound': return '🩹';
-      case 'skin_condition': return '🔍';
       default: return '📋';
     }
   }
@@ -298,7 +296,6 @@ export default function AnalysisPage() {
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                       <span className={`badge ${
                         (result.analysis.classification || result.analysis.report?.classification) === 'malignant' ? 'badge-danger' :
-                        (result.analysis.classification || result.analysis.report?.classification) === 'wound' ? 'badge-warning' :
                         (result.analysis.classification || result.analysis.report?.classification) === 'benign' ? 'badge-success' : 'badge-info'
                       }`}>
                         {(result.analysis.classification || result.analysis.report?.classification)?.toUpperCase()}

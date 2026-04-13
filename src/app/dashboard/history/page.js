@@ -40,8 +40,6 @@ export default function HistoryPage() {
     const map = {
       benign: 'badge-success',
       malignant: 'badge-danger',
-      wound: 'badge-warning',
-      skin_condition: 'badge-info',
     };
     return map[classification] || 'badge-neutral';
   }
@@ -104,16 +102,21 @@ export default function HistoryPage() {
                     flexShrink: 0,
                     overflow: 'hidden',
                   }}>
-                    {analysis.image_url?.startsWith('data:') ? (
+                    {analysis.image_url ? (
                       <img
                         src={analysis.image_url}
                         alt="Analysis"
                         className="history-thumbnail"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                        }}
                       />
                     ) : (
-                      analysis.classification === 'benign' ? '✅' :
-                      analysis.classification === 'malignant' ? '⚠️' :
-                      analysis.classification === 'wound' ? '🩹' : '🔍'
+                      <span style={{ fontSize: '2rem' }}>
+                        {analysis.classification === 'benign' ? '✅' :
+                         analysis.classification === 'malignant' ? '⚠️' : '🔍'}
+                      </span>
                     )}
                   </div>
                   <div className="history-info">

@@ -3,7 +3,7 @@ import './globals.css';
 export const metadata = {
   title: 'DermoAI - AI-Powered Skin Analysis',
   description: 'Advanced AI-powered skin condition analysis platform. Upload or capture skin images for instant, detailed medical reports with home remedies and doctor consultations.',
-  keywords: 'skin analysis, AI dermatology, skin cancer detection, wound classification, medical AI, teledermatology',
+  keywords: 'skin analysis, AI dermatology, skin cancer detection, medical AI, teledermatology',
 };
 
 export default function RootLayout({ children }) {
