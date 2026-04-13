@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -12,12 +12,7 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    checkAuth();
-    fetchNotificationCount();
-  }, []);
-
-  async function checkAuth() {
+  const checkAuth = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
@@ -46,9 +41,9 @@ export default function DashboardLayout({ children }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
 
-  async function fetchNotificationCount() {
+  const fetchNotificationCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/notifications', {
@@ -57,7 +52,12 @@ export default function DashboardLayout({ children }) {
       const data = await res.json();
       setUnreadCount(data.unread_count || 0);
     } catch {}
-  }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    fetchNotificationCount();
+  }, [checkAuth, fetchNotificationCount]);
 
   function handleLogout() {
     localStorage.removeItem('token');

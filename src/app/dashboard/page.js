@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 
 export default function AnalysisPage() {
   const [image, setImage] = useState(null);
@@ -213,7 +214,14 @@ export default function AnalysisPage() {
           {image && !analyzing && (
             <div>
               <div className="preview-container">
-                <img src={imagePreview} alt="Skin image preview" className="preview-image" />
+                <Image
+                  src={imagePreview}
+                  alt="Skin image preview"
+                  width={400}
+                  height={400}
+                  className="preview-image"
+                  style={{ objectFit: 'contain' }}
+                />
                 <div className="preview-overlay">
                   <button className="btn btn-icon btn-secondary" onClick={clearImage} title="Remove image">
                     ✕

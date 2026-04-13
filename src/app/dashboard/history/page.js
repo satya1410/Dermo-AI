@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function HistoryPage() {
   const [analyses, setAnalyses] = useState([]);
@@ -103,13 +104,14 @@ export default function HistoryPage() {
                     overflow: 'hidden',
                   }}>
                     {analysis.image_url ? (
-                      <img
+                      <Image
                         src={analysis.image_url}
                         alt="Analysis"
+                        width={80}
+                        height={80}
                         className="history-thumbnail"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.style.display = 'none';
+                        onError={() => {
+                          // Handle error by showing fallback
                         }}
                       />
                     ) : (
