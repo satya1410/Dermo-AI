@@ -61,6 +61,15 @@ try:
         state_dict = checkpoint.get('state_dict', checkpoint)
         new_state_dict = {k[7:] if k.startswith('module.') else k: v for k, v in state_dict.items()}
         skin_model.load_state_dict(new_state_dict, strict=False)
+        
+        # --- AGGRESSIVE MEMORY CLEARING FOR RENDER FREE TIER (512MB MAX) ---
+        del checkpoint
+        del state_dict
+        del new_state_dict
+        import gc
+        gc.collect()
+        # -------------------------------------------------------------------
+        
         print("Model loaded successfully!")
     else:
         print(f"Warning: Model file {skin_path} not found.")
