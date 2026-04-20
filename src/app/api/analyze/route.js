@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
-import { verifySkinImage, generateReportFromLocalClass } from '@/lib/gemini';
+import { verifySkinImage, generateReportFromLocalClass, analyzeSkinCondition } from '@/lib/gemini';
 import { classifyLocally } from '@/lib/ml';
 
 export const maxDuration = 60; // Allow 60 seconds for Vercel Serverless execution
@@ -86,12 +86,17 @@ export async function POST(request) {
       });
     }
 
-    // --- NEW: USE LOCAL MODELS FOR CLASSIFICATION ---
-    // Step 2: Use local .pth models (Python bridge) to classify image
-    const localResult = await classifyLocally(base64Data);
-    
-    // Step 3: Generate detailed report text using Gemini based on local classification
-    const report = await generateReportFromLocalClass(localResult, profile || {});
+    // --- CLASSIFICATION LOGIC ---
+    let report;
+
+    if (process.env.VERCEL || (process.env.NODE_ENV === 'production' && !process.env.LOCAL_SERVER)) {
+      // ON VERCEL: Directly use Gemini Vision to analyze the image
+      report = await analyzeSkinCondition(base64Data, detectedMimeType, profile || {});
+    } else {
+      // LOCALLY: Use the PyTorch model via python classification
+      const localResult = await classifyLocally(base64Data);
+      report = await generateReportFromLocalClass(localResult, profile || {});
+    }
     // ------------------------------------------------
 
     // Step 4: Save to database
