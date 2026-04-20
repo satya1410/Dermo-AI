@@ -11,7 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'https://your-vercel-deployment-url.vercel.app'; // Replace with your Vercel URL
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3000'; // Local IP for Expo Go
 
 export default function SignupScreen() {
   const navigation = useNavigation();
@@ -91,11 +91,20 @@ export default function SignupScreen() {
 
   return (
     <ScrollView className="flex-1 bg-white">
-      <View className="px-6 py-8">
+      <View className="flex-1 px-6 py-8 bg-[#fafafa]">
+        {/* Aesthetic Badge */}
+        <View className="items-center mb-4">
+          <View className="bg-blue-100 rounded-full px-4 py-2">
+            <Text className="text-blue-700 font-semibold text-xs tracking-wide">
+              ✨ Join DermoAI Today
+            </Text>
+          </View>
+        </View>
+
         {/* Logo */}
-        <View className="items-center mb-6">
-          <Text className="text-4xl mb-2">🔬</Text>
-          <Text className="text-3xl font-bold text-blue-600">DermoAI</Text>
+        <View className="items-center mb-8">
+          <Text className="text-5xl mb-2">🔬</Text>
+          <Text className="text-3xl font-extrabold text-blue-600 tracking-tight">DermoAI</Text>
         </View>
 
         {/* Role Toggle */}
@@ -123,8 +132,8 @@ export default function SignupScreen() {
         </View>
 
         {/* Signup Form */}
-        <View className="bg-white rounded-lg p-6 shadow-lg">
-          <Text className="text-2xl font-bold text-center mb-6">Create Account</Text>
+        <View className="bg-white rounded-3xl p-6 shadow-xl shadow-blue-500/10 border border-gray-100">
+          <Text className="text-2xl font-bold text-center mb-6 text-gray-800">Create Account</Text>
 
           {/* Basic Info */}
           <View className="mb-4">

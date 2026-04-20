@@ -76,40 +76,56 @@ export async function analyzeSkinCondition(imageBase64, mimeType = 'image/jpeg',
       ? (patientInfo.weight / ((patientInfo.height / 100) ** 2)).toFixed(1)
       : 'Unknown';
 
-    const prompt = `You are an expert dermatologist AI. Analyze the following skin image and provide a comprehensive medical assessment.
+    const prompt = `You are an expert dermatologist AI with 20+ years of clinical experience. Perform a comprehensive, detailed medical analysis of this skin image.
 
 Patient Info: Age ${patientInfo.age || 'Unknown'}, Sex ${patientInfo.sex || 'Unknown'}, BMI ${bmi}.
 
-Respond ONLY with a valid JSON object:
+Respond ONLY with a valid JSON object (no markdown, no code fences):
 {
   "classification": "benign|malignant",
-  "condition_name": "specific condition name",
+  "condition_name": "specific medical condition name",
   "severity": "Low|Moderate|High|Critical",
-  "confidence": 0.85,
-  "description": "...",
-  "affected_area": "...",
-  "possible_causes": ["..."],
-  "risk_factors": ["..."],
-  "symptoms_to_watch": ["..."],
-  "home_remedies": [
-    {"remedy": "...", "description": "...", "effectiveness": "High|Moderate|Low"}
+  "confidence": 0.87,
+  "summary": "2-3 sentence executive summary of findings for the patient",
+  "description": "Detailed 4-5 sentence clinical description of the condition, its appearance, and pathophysiology",
+  "affected_area": "Specific body area and tissue layers likely affected",
+  "gradcam_region": "Plain-language description of which area/feature in the image is most diagnostically significant (e.g., 'The dark irregular border at the upper left of the lesion shows the highest concern and is the primary indicator of this diagnosis')",
+  "likelihood_of_occurrence": {
+    "general_population": "X in 1000 people",
+    "your_age_group": "X%",
+    "your_sex": "X% more/less common",
+    "overall_risk_level": "Low|Moderate|High"
+  },
+  "differential_diagnosis": [
+    {"condition": "...", "likelihood": "High|Moderate|Low", "distinguishing_factor": "..."},
+    {"condition": "...", "likelihood": "High|Moderate|Low", "distinguishing_factor": "..."}
   ],
-  "medical_recommendations": ["..."],
-  "when_to_see_doctor": "...",
-  "prevention_tips": ["..."],
-  "lifestyle_advice": "...",
-  "additional_notes": "..."
+  "possible_causes": ["cause 1", "cause 2", "cause 3"],
+  "risk_factors": ["risk factor 1", "risk factor 2", "risk factor 3"],
+  "symptoms_to_watch": ["symptom 1", "symptom 2", "symptom 3"],
+  "home_remedies": [
+    {"remedy": "name", "instructions": "Step-by-step instructions on how to apply/use this remedy", "frequency": "How often to use", "effectiveness": "High|Moderate|Low", "caution": "Any warnings or contraindications"},
+    {"remedy": "name", "instructions": "...", "frequency": "...", "effectiveness": "High|Moderate|Low", "caution": "..."},
+    {"remedy": "name", "instructions": "...", "frequency": "...", "effectiveness": "High|Moderate|Low", "caution": "..."}
+  ],
+  "medical_recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"],
+  "treatments_available": [
+    {"treatment": "name", "type": "Topical|Oral|Procedural|Surgical", "description": "brief description"},
+    {"treatment": "name", "type": "Topical|Oral|Procedural|Surgical", "description": "brief description"}
+  ],
+  "prognosis": "Detailed description of expected outcome with treatment vs without treatment",
+  "when_to_seek_emergency": "Specific symptoms or changes that require immediate emergency care",
+  "when_to_see_doctor": "Specific timeframe and symptoms that indicate a doctor visit is needed",
+  "prevention_tips": ["prevention tip 1", "prevention tip 2", "prevention tip 3"],
+  "lifestyle_advice": "Detailed 2-3 sentence lifestyle modification advice",
+  "dietary_recommendations": ["food 1 to avoid/consume", "food 2", "food 3"],
+  "additional_notes": "Any other clinically relevant information"
 }`;
 
     const result = await executeWithFallback((model) =>
       model.generateContent([
         prompt,
-        {
-          inlineData: {
-            mimeType,
-            data: imageBase64,
-          },
-        },
+        { inlineData: { mimeType, data: imageBase64 } },
       ])
     );
 
@@ -124,6 +140,7 @@ Respond ONLY with a valid JSON object:
   }
 }
 
+
 /**
  * Generate a detailed medical report based on local model classification
  */
@@ -133,34 +150,53 @@ export async function generateReportFromLocalClass(localResult, patientInfo = {}
       ? (patientInfo.weight / ((patientInfo.height / 100) ** 2)).toFixed(1)
       : 'Unknown';
 
-    const prompt = `You are an expert dermatologist AI. A local computer vision model has classified a skin image with the following results:
+    const prompt = `You are an expert dermatologist AI with 20+ years of clinical experience. A local PyTorch computer vision model has classified a skin image:
 - Classification: ${localResult.classification}
-- Condition Name: ${localResult.condition_name}
+- Condition: ${localResult.condition_name}
 - Confidence: ${(localResult.confidence * 100).toFixed(1)}%
-- Base Severity: ${localResult.severity}
-
+- Severity: ${localResult.severity}
 Patient Info: Age ${patientInfo.age || 'Unknown'}, Sex ${patientInfo.sex || 'Unknown'}, BMI ${bmi}.
 
-Based on this classification, generate a comprehensive medical report. 
-Respond ONLY with a valid JSON object:
+Generate a comprehensive, detailed medical report. Respond ONLY with a valid JSON object (no markdown):
 {
   "classification": "${localResult.classification}",
   "condition_name": "${localResult.condition_name}",
   "severity": "${localResult.severity}",
   "confidence": ${localResult.confidence},
-  "description": "Detailed description of this condition and what it looks like",
-  "affected_area": "Likely affected body areas",
-  "possible_causes": ["..."],
-  "risk_factors": ["..."],
-  "symptoms_to_watch": ["..."],
-  "home_remedies": [
-    {"remedy": "...", "description": "...", "effectiveness": "High|Moderate|Low"}
+  "summary": "2-3 sentence plain-language executive summary for the patient",
+  "description": "Detailed 4-5 sentence clinical description of this specific condition, its appearance, and pathophysiology",
+  "affected_area": "Specific body areas and tissue layers typically affected",
+  "gradcam_region": "Description of which visual features in the image are most diagnostically significant (e.g., 'Irregular asymmetric border and uneven pigmentation are the primary diagnostic markers for this classification')",
+  "likelihood_of_occurrence": {
+    "general_population": "X in 1000 people",
+    "your_age_group": "X% of this age group",
+    "your_sex": "X% more/less common in this sex",
+    "overall_risk_level": "Low|Moderate|High"
+  },
+  "differential_diagnosis": [
+    {"condition": "alternative condition name", "likelihood": "High|Moderate|Low", "distinguishing_factor": "what distinguishes it"},
+    {"condition": "another alternative", "likelihood": "High|Moderate|Low", "distinguishing_factor": "what distinguishes it"}
   ],
-  "medical_recommendations": ["..."],
-  "when_to_see_doctor": "...",
-  "prevention_tips": ["..."],
-  "lifestyle_advice": "...",
-  "additional_notes": "..."
+  "possible_causes": ["specific cause 1", "specific cause 2", "specific cause 3"],
+  "risk_factors": ["risk factor 1", "risk factor 2", "risk factor 3"],
+  "symptoms_to_watch": ["warning symptom 1", "warning symptom 2", "warning symptom 3"],
+  "home_remedies": [
+    {"remedy": "remedy name", "instructions": "Detailed step-by-step application instructions", "frequency": "e.g. twice daily for 2 weeks", "effectiveness": "High|Moderate|Low", "caution": "warnings or contraindications"},
+    {"remedy": "remedy name", "instructions": "...", "frequency": "...", "effectiveness": "High|Moderate|Low", "caution": "..."},
+    {"remedy": "remedy name", "instructions": "...", "frequency": "...", "effectiveness": "High|Moderate|Low", "caution": "..."}
+  ],
+  "medical_recommendations": ["medical action 1", "medical action 2", "medical action 3"],
+  "treatments_available": [
+    {"treatment": "treatment name", "type": "Topical|Oral|Procedural|Surgical", "description": "how it works and typical duration"},
+    {"treatment": "treatment name", "type": "Topical|Oral|Procedural|Surgical", "description": "..."}
+  ],
+  "prognosis": "Expected outcome with proper treatment vs if untreated, including timeline",
+  "when_to_seek_emergency": "Specific red-flag symptoms requiring immediate ER visit",
+  "when_to_see_doctor": "Specific timeframe and criteria for scheduling a dermatologist appointment",
+  "prevention_tips": ["prevention tip 1", "prevention tip 2", "prevention tip 3"],
+  "lifestyle_advice": "Detailed 2-3 sentence advice on diet, sun exposure, skin care routine",
+  "dietary_recommendations": ["beneficial food 1", "food to avoid 1", "supplement suggestion"],
+  "additional_notes": "Any other clinically relevant information or caveats"
 }`;
 
     const result = await executeWithFallback((model) => model.generateContent(prompt));

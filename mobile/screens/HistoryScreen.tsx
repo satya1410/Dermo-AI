@@ -1,176 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const API_BASE_URL = 'https://your-vercel-deployment-url.vercel.app'; // Replace with your Vercel URL
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3000';
 
 export default function HistoryScreen() {
-  const navigation = useNavigation();
-  const [analyses, setAnalyses] = useState([]);
+  const navigation = useNavigation<any>();
+  const [analyses, setAnalyses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useEffect(() => { fetchHistory(); }, []);
 
-  const loadHistory = async () => {
+  const fetchHistory = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        navigation.navigate('Login');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(`${API_BASE_URL}/api/analyses`, {
+        headers: { 'Authorization': `Bearer ${token}` },
       });
-
       const data = await response.json();
-      if (response.ok) {
-        setAnalyses(data.analyses || []);
-      } else {
-        Alert.alert('Error', 'Failed to load history');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Network error');
-    } finally {
+      if (response.ok) setAnalyses(data.analyses || []);
+    } catch (e) {} finally {
       setLoading(false);
     }
   };
 
-  const getSeverityBadge = (severity) => {
-    const colors = {
-      Low: 'bg-green-100 text-green-800',
-      Moderate: 'bg-yellow-100 text-yellow-800',
-      High: 'bg-orange-100 text-orange-800',
-      Critical: 'bg-red-100 text-red-800',
-    };
-    return colors[severity] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getClassBadge = (classification) => {
-    return classification === 'benign'
-      ? 'bg-green-100 text-green-800'
-      : 'bg-red-100 text-red-800';
-  };
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="mt-4 text-gray-600">Loading history...</Text>
-      </View>
-    );
-  }
+  const getSeverityColor = (s: string) => s === 'Low' ? '#10b981' : s === 'Moderate' ? '#f59e0b' : '#ef4444';
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="bg-white px-6 py-4 shadow-sm">
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            className="mr-4"
-            onPress={() => navigation.goBack()}
-          >
-            <Text className="text-2xl">←</Text>
-          </TouchableOpacity>
-          <Text className="text-xl font-bold">Analysis History</Text>
-        </View>
+    <LinearGradient colors={['#0f172a', '#1e293b', '#0f172a']} style={styles.gradient}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Analysis History</Text>
+        <View style={{ width: 60 }} />
       </View>
 
-      {/* Content */}
-      <View className="px-6 py-6">
-        {analyses.length === 0 ? (
-          <View className="bg-white rounded-xl p-8 items-center shadow-sm">
-            <Text className="text-6xl mb-4">📊</Text>
-            <Text className="text-xl font-bold text-gray-800 mb-2">No Analyses Yet</Text>
-            <Text className="text-gray-600 text-center">
-              Start by uploading a skin image on the Analysis page to get your first report.
-            </Text>
-          </View>
-        ) : (
-          <View className="gap-4">
-            {analyses.map((analysis) => (
-              <View key={analysis.id} className="bg-white rounded-xl p-4 shadow-sm">
-                <View className="flex-row">
-                  {/* Thumbnail */}
-                  <View className="w-16 h-16 bg-gray-200 rounded-lg mr-4 items-center justify-center">
-                    {analysis.image_url ? (
-                      <Image
-                        source={{ uri: analysis.image_url }}
-                        className="w-16 h-16 rounded-lg"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Text className="text-2xl">
-                        {analysis.classification === 'benign' ? '✅' : '⚠️'}
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Content */}
-                  <View className="flex-1">
-                    <View className="flex-row justify-between items-start mb-2">
-                      <View className={`px-2 py-1 rounded-full ${getClassBadge(analysis.classification)}`}>
-                        <Text className="text-xs font-bold">
-                          {analysis.classification === 'benign' ? 'Benign' : 'Malignant'}
-                        </Text>
-                      </View>
-                      {analysis.severity && (
-                        <View className={`px-2 py-1 rounded-full ${getSeverityBadge(analysis.severity)}`}>
-                          <Text className="text-xs font-bold">{analysis.severity}</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text className="text-sm text-gray-600 mb-1">
-                      {formatDate(analysis.created_at)}
+      <ScrollView style={styles.flex} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {loading ? (
+            <ActivityIndicator color="#3b82f6" size="large" style={{ marginTop: 60 }} />
+          ) : analyses.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>📊</Text>
+              <Text style={styles.emptyTitle}>No analyses yet</Text>
+              <Text style={styles.emptyText}>Your past skin analyses will appear here</Text>
+              <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('Dashboard')}>
+                <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.ctaBtnGrad}>
+                  <Text style={styles.ctaBtnText}>Start Analysis</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            analyses.map((item) => (
+              <View key={item.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.badge, { backgroundColor: item.classification === 'benign' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)' }]}>
+                    <Text style={[styles.badgeText, { color: item.classification === 'benign' ? '#10b981' : '#ef4444' }]}>
+                      {item.classification === 'benign' ? '✅ Benign' : '⚠️ Malignant'}
                     </Text>
-
-                    {analysis.confidence && (
-                      <Text className="text-sm text-gray-600">
-                        Confidence: {(analysis.confidence * 100).toFixed(1)}%
-                      </Text>
-                    )}
                   </View>
+                  {item.severity && (
+                    <Text style={[styles.severity, { color: getSeverityColor(item.severity) }]}>
+                      {item.severity}
+                    </Text>
+                  )}
                 </View>
 
-                {analysis.report && (
-                  <View className="mt-3 pt-3 border-t border-gray-200">
-                    <Text className="text-sm text-gray-700 leading-5">
-                      {analysis.report.length > 150
-                        ? `${analysis.report.substring(0, 150)}...`
-                        : analysis.report
-                      }
-                    </Text>
-                  </View>
+                {item.condition_name && (
+                  <Text style={styles.conditionName}>{item.condition_name}</Text>
                 )}
+
+                <View style={styles.metaRow}>
+                  {item.confidence && (
+                    <Text style={styles.meta}>🎯 {(item.confidence * 100).toFixed(1)}% confidence</Text>
+                  )}
+                  <Text style={styles.meta}>
+                    📅 {new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                </View>
               </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </ScrollView>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: { flex: 1 },
+  flex: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
+  backBtn: { padding: 8 },
+  backText: { color: '#60a5fa', fontSize: 15, fontWeight: '600' },
+  headerTitle: { color: '#f1f5f9', fontSize: 18, fontWeight: '700' },
+  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  empty: { alignItems: 'center', marginTop: 80 },
+  emptyIcon: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { color: '#f1f5f9', fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  emptyText: { color: '#64748b', fontSize: 14, marginBottom: 24 },
+  ctaBtn: { borderRadius: 14, overflow: 'hidden' },
+  ctaBtnGrad: { paddingHorizontal: 32, paddingVertical: 14 },
+  ctaBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  card: { backgroundColor: 'rgba(30,41,59,0.8)', borderRadius: 20, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' },
+  badge: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  badgeText: { fontWeight: '700', fontSize: 13 },
+  severity: { fontSize: 13, fontWeight: '600' },
+  conditionName: { color: '#f1f5f9', fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  metaRow: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
+  meta: { color: '#64748b', fontSize: 12 },
+});
