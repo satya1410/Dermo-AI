@@ -9,19 +9,23 @@ import os from 'os';
  * @returns {Promise<Object>} - Classification results
  */
 export async function classifyLocally(imageBase64) {
-  return new Promise((resolve, reject) => {
-    // Check if running on Vercel (Vercel Node runtime doesn't have Python or PyTorch installed)
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production' && !fs.existsSync(path.join(process.cwd(), 'classify.py'))) {
-      console.warn('Vercel environment detected! Bypassing local Python PyTorch model.');
-      return resolve({
-        classification: 'unknown',
-        condition_name: 'Analysis require medical professional',
-        confidence: 0.5,
-        severity: 'Moderate',
-        error: 'Local PyTorch models cannot run on Vercel'
-      });
+  // If an external Python API is configured (e.g., deployed on Render/Railway), use it
+  if (process.env.PYTHON_API_URL) {
+    console.log("Calling external Python API at:", process.env.PYTHON_API_URL);
+    const response = await fetch(`${process.env.PYTHON_API_URL}/classify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageBase64 })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`External Python API Failed: ${errorText}`);
     }
+    return await response.json();
+  }
 
+  return new Promise((resolve, reject) => {
     // Create a temporary file for the image in a writable temp directory
     const tempDir = path.join(os.tmpdir(), 'dermoai-scratch');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
