@@ -4,6 +4,9 @@ import { getUserFromRequest } from '@/lib/auth';
 import { verifySkinImage, generateReportFromLocalClass } from '@/lib/gemini';
 import { classifyLocally } from '@/lib/ml';
 
+export const maxDuration = 60; // Allow 60 seconds for Vercel Serverless execution
+
+
 export async function POST(request) {
   try {
     const payload = await getUserFromRequest(request);

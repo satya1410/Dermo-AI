@@ -1,16 +1,39 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-// Use 1.5-flash for better stability on free tier quotas
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+
+// Provide fallback models in case the first one is disabled or not found
+const FALLBACK_MODELS = [
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-pro',
+  'gemini-1.0-pro'
+];
+
+async function executeWithFallback(action) {
+  let lastError;
+  for (const modelName of FALLBACK_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      return await action(model);
+    } catch (error) {
+      console.warn(`[Gemini Fallback] Model ${modelName} failed:`, error.message || error);
+      lastError = error;
+      // If it's a rate limit or API key error, don't fall back, throw immediately
+      if (error.message?.includes('429') || error.message?.includes('403') || error.message?.includes('API key')) {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`All Gemini models failed. Last error: ${lastError?.message || 'Unknown error'}`);
+}
 
 /**
  * Check if the uploaded image is a skin/dermatological image
  */
 export async function verifySkinImage(imageBase64, mimeType = 'image/jpeg') {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
-
     const prompt = `You are a medical image analysis expert. Analyze this image and determine if it shows human skin, a skin lesion, skin condition, or any dermatological concern.
 
 Respond ONLY with a valid JSON object (no markdown, no code fences):
@@ -22,15 +45,17 @@ Rules:
 - Return false if the image is not related to skin/dermatology
 - Return false if the image is too blurry, dark, or unclear`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
+    const result = await executeWithFallback((model) => 
+      model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType,
+            data: imageBase64,
+          },
         },
-      },
-    ]);
+      ])
+    );
 
     const response = result.response.text();
     const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -47,8 +72,6 @@ Rules:
  */
 export async function analyzeSkinCondition(imageBase64, mimeType = 'image/jpeg', patientInfo = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
-
     const bmi = patientInfo.height && patientInfo.weight
       ? (patientInfo.weight / ((patientInfo.height / 100) ** 2)).toFixed(1)
       : 'Unknown';
@@ -78,15 +101,17 @@ Respond ONLY with a valid JSON object:
   "additional_notes": "..."
 }`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
+    const result = await executeWithFallback((model) =>
+      model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType,
+            data: imageBase64,
+          },
         },
-      },
-    ]);
+      ])
+    );
 
     const response = result.response.text();
     const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -104,8 +129,6 @@ Respond ONLY with a valid JSON object:
  */
 export async function generateReportFromLocalClass(localResult, patientInfo = {}) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
-
     const bmi = patientInfo.height && patientInfo.weight
       ? (patientInfo.weight / ((patientInfo.height / 100) ** 2)).toFixed(1)
       : 'Unknown';
@@ -140,7 +163,7 @@ Respond ONLY with a valid JSON object:
   "additional_notes": "..."
 }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await executeWithFallback((model) => model.generateContent(prompt));
     const response = result.response.text();
     const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);
@@ -161,7 +184,6 @@ Respond ONLY with a valid JSON object:
  */
 export async function generateMedicalNews() {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
     const today = new Date().toISOString().split('T')[0];
 
     const prompt = `Generate 6 recent dermatology/medical news headlines as a JSON array. 
@@ -169,7 +191,7 @@ Category: Dermatology|Research|Technology|Treatment.
 Structure: {"id", "title", "summary", "category", "date", "source", "emoji"}. 
 Date near ${today}.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await executeWithFallback((model) => model.generateContent(prompt));
     const response = result.response.text();
     const cleaned = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned);

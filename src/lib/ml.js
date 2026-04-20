@@ -10,6 +10,18 @@ import os from 'os';
  */
 export async function classifyLocally(imageBase64) {
   return new Promise((resolve, reject) => {
+    // Check if running on Vercel (Vercel Node runtime doesn't have Python or PyTorch installed)
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production' && !fs.existsSync(path.join(process.cwd(), 'classify.py'))) {
+      console.warn('Vercel environment detected! Bypassing local Python PyTorch model.');
+      return resolve({
+        classification: 'unknown',
+        condition_name: 'Analysis require medical professional',
+        confidence: 0.5,
+        severity: 'Moderate',
+        error: 'Local PyTorch models cannot run on Vercel'
+      });
+    }
+
     // Create a temporary file for the image in a writable temp directory
     const tempDir = path.join(os.tmpdir(), 'dermoai-scratch');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
