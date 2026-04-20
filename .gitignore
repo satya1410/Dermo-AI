@@ -30,7 +30,7 @@ yarn-error.log*
 .vercel
 
 # ML model files (too large for git)
-*.pth
+
 
 # ide
 .vscode
